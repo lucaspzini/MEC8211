@@ -1,18 +1,19 @@
 # MEC8211 - Devoir 2
-# Bradley, James et Lucas
+# Lucas P. Zini
 
 # Ce code vise à calculer l'équation de diffusion en régime transitoire
 
 import numpy as np
 import matplotlib.pyplot as plt
 from numpy.linalg import norm
+from scipy.interpolate import interp1d
 
 # Définition des variables
 R = 0.5         # Rayon du cylindre
 Deff = 1e-10    # Coefficient de diffusion
 k = 4e-9        # Constante de vitesse
 Ce = 12         # Concentration à r = R
-dt = 1e9        # Pas de temps
+dt = 1e6        # Pas de temps
 print("dt =", dt)
 print()
 
@@ -45,46 +46,9 @@ def solve_diffusion_cylindrical_central(r, h, N, Deff, k, Ce, dt):
         C_aux = C
     return C
 
-# Fonction pour la MNP
-def solve_diffusion_MNP(r, h, N, Deff, k, Ce, dt, coefficients):
-    C = np.zeros(N)   # Concentration à t = 0
-    C_aux = C
-
-    residuMax = 1e-10
-    residu = 10.*residuMax
-
-    while residu > residuMax:
-        A = np.zeros((N, N))
-        b = np.zeros(N)
-
-        for i in range(1, N-1):
-            A[i, i-1] = -Deff*dt*(1 - h/(2*r[i]))
-            A[i, i] = 2*Deff*dt + h**2 + h**2*dt*k
-            A[i, i+1] = -Deff*dt*(1 + h/(2*r[i]))
-            # b[i] = C[i]*h**2 - Deff*(16*coefficients[0]*r[i]**2 + 9*coefficients[1]*r[i] + 4*coefficients[2] + coefficients[3]/r[i]) + \
-            #     k*(coefficients[0]*r[i]**4 + coefficients[1]*r[i]**3 + coefficients[2]*r[i]**2 + coefficients[3]*r[i] + coefficients[4])
-            b[i] = C[i]*h**2 - Deff*(4*coefficients[0] + coefficients[1]/r[i]) + \
-                k*(coefficients[0]*r[i]**2 + coefficients[1]*r[i] + coefficients[2])
-        A[0, 0] = -3
-        A[0, 1] = 4
-        A[0, 2] = -1
-        b[0] = 0
-        A[N-1, N-1] = 1
-        b[N-1] = Ce
-        C = np.linalg.solve(A, b)   
-
-        residu = abs(sum(C - C_aux))
-        # print(residu)
-        C_aux = C 
-    return C
-
-# Obtenir le polynôme d'interpolation
-def interpolation(r, C):
-    # Ajuster un polynôme
-    coefficients = np.polyfit(r, C, 2)
-    print("Polynomial coefficients:", coefficients)
-
-    return coefficients
+# Obtenir une spline d'interpolation
+def interpolation(r, C, kind='cubic'):
+    return interp1d(r, C, kind)
 
 # Résoudre l'équation de diffusion
 
@@ -97,7 +61,7 @@ all_l2 = []
 all_l_inf = []
 
 # Définition du maillage pour la solution analytique
-N_anly = 1000
+N_anly = 100
 h = R/(N_anly-1)     # Pas du schéma
 r_anly = np.linspace(0, R, N_anly)    # Discrétisation du domaine
 
@@ -105,13 +69,11 @@ r_anly = np.linspace(0, R, N_anly)    # Discrétisation du domaine
 C_anly = solve_diffusion_cylindrical_central(r_anly, h, N_anly, Deff, k, Ce, dt)
 print('C_analytique =', C_anly)
 
-# Fonction d'interpolation analytique
-coefficients = interpolation(r_anly, C_anly)
-poly = np.poly1d(coefficients)
-print("Polynomial:\n", poly)
+# Fonction d'interpolation analytique - spline
+spline = interpolation(r_anly, C_anly)
 
 # Définition du maillage
-noeuds = [3, 4, 5, 6, 7, 8, 9, 10, 15, 20, 25, 50, 100, 1000]
+noeuds = [3, 4, 5, 6, 7, 8, 9, 10, 15, 20, 25, 50]
 
 for N in noeuds:
     h = R/(N-1)     # Pas du schéma
@@ -122,15 +84,11 @@ for N in noeuds:
     
     # Solution analytique
     sol_anly = []
-
     for i in range(N):
-        sol_anly.append(poly(r[i]))
-    # print('sol analyt =', sol_anly)
+        sol_anly.append(spline(r[i]))
 
     # Calculer la concentration avec la MNP
-    C = solve_diffusion_MNP(r, h, N, Deff, k, Ce, dt, coefficients)
-    # print()
-    # print("C_MNP =", C)  
+    C = solve_diffusion_cylindrical_central(r, h, N, Deff, k, Ce, dt)
     
     # Stocker les données pour le traçage
     all_r.append(r)
@@ -161,9 +119,9 @@ for N in noeuds:
 
 # Tracer le résultat
 plt.figure()
-plt.plot(r_anly, C_anly,label='Solution proche')
+plt.plot(r_anly, spline(r_anly),label='Solution proche')
 for i in range(len(all_r)):
-    plt.plot(all_r[i], all_C[i], label=f'Solution avec le terme source, N = {noeuds[i]}')
+    plt.plot(all_r[i], all_C[i], label=f'Solution avec {noeuds[i]} nœuds')
 
 # Rendre les axes plus gras
 plt.gca().spines['bottom'].set_linewidth(2)
@@ -183,7 +141,7 @@ plt.show()
 
 # Ajuster une loi de puissance à toutes les valeurs (en utilisant np.polyfit avec logarithmes)
 coefficients = []
-coefficients = np.polyfit(np.log(all_h[5:7]), np.log(all_l2[5:7]), 1)
+coefficients = np.polyfit(np.log(all_h[6:11]), np.log(all_l2[6:11]), 1)
 exponent = coefficients[0]
 
 # Fonction de régression en termes de logarithmes

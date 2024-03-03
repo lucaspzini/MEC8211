@@ -10,6 +10,7 @@ Ensuite, l'analyse de convergence à l'aide de la méthode des solutions manufac
 Fichiers :
 /bin/Devoir 2 COMSOL.mph : simulation COMSOL
 /data/comsol_data.txt : données générées par la simulation COMSOL
-/results/Code à code.xlsx : 
+/results/Code à code.xlsx : résultats de la vérification code à code
 /results/ ****NAME****.pdf : présentation des résultats et discussions
-/src/ ****NAME****.py : code Python
+****Codes Python****
+/src/ ****NAME****.py : 
