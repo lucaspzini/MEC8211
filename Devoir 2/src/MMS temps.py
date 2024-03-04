@@ -14,10 +14,8 @@ R = 0.5         # Rayon du cylindre
 Deff = 1e-10    # Coefficient de diffusion
 k = 4e-9        # Constante de vitesse
 Ce = 12         # Concentration à r = R
-dt = 1e6        # Pas de temps
 t0 = 1e20
-print("dt =", dt)
-print()
+T = 1e6
 
 # Fonction pour résoudre le système linéaire : approximation centrée de la dérivée
 def solve_diffusion_cylindrical_central(r, h, N, Deff, k, Ce, dt, t0):
@@ -48,51 +46,62 @@ def solve_diffusion_cylindrical_central(r, h, N, Deff, k, Ce, dt, t0):
         C_aux = C
     return C
 
+# Solution analytique
+def analytique(r, dt):
+    return Ce * (r/R)**2 * np.exp(dt/t0)
+
 # Résoudre l'équation de diffusion
 
 # Initialiser les variables de stockage pour le traçage
-all_r = []
-all_C = []
-all_h = []
+all_dt = []
 all_l1 = []
 all_l2 = []
 all_l_inf = []
 
 # Définition du maillage
-noeuds = [3, 4, 5, 6, 7, 8, 9, 10, 15, 20, 25, 50, 100]
+N = 50          # Nombre de nœuds en espace
+h = R/(N-1)     # Pas du schéma en espace
+r = np.linspace(0, R, N)    # Discrétisation du domaine spatial
 
-for N in noeuds:
-    h = R/(N-1)     # Pas du schéma
-    r = np.linspace(0, R, N)    # Discrétisation du domaine
-    print("N =", N)
+# Définition du maillage
+noeuds_t = [11, 51, 101, 501]
+
+for Nt in noeuds_t:
+    dt = T/(Nt-1)     # Pas du schéma en temps
+    print("Nœuds en temps =", Nt)
     print()
-    print("h =", h)
-    
-    # Solution analytique
-    sol_anly = []
-    for i in range(N):
-        sol_anly.append(Ce * (r[i]/R)**2 * np.exp(dt/t0))
-
-    # Calculer la concentration avec la MNP
-    C = solve_diffusion_cylindrical_central(r, h, N, Deff, k, Ce, dt, t0)
+    print("dt =", dt)
     
     # Stocker les données pour le traçage
-    all_r.append(r)
-    all_C.append(C)
-    all_h.append(h)
+    all_dt.append(dt)
 
-    # Calculer les erreurs (normes standardisées)
-    erreur = abs(C - sol_anly)
+    # Calculer la concentration analytique sur le domaine 2D
+    C_anly = np.zeros((Nt, N))
+    for i in range(Nt):
+        C_anly[i] = analytique(r, dt)
+
+    # Calculer la concentration sur le domaine 2D
+    C = np.zeros((Nt, N))
+    for i in range(Nt):
+        C[i] = solve_diffusion_cylindrical_central(r, h, N, Deff, k, Ce, (i*dt), t0)
+        print(i)
+
+    # Calculer l'erreur pour chaque collone de la matrice C
+    erreurs = []
+    erreur = abs(C - C_anly)
+    erreurs.append(erreur)
+    erreurs_array = np.array(erreurs) # Convertir la variable erreurs en NumPy array
     
-    l1 = 1/N * sum(erreur)
+    # Calculer les normes L1, L2 et L∞ pour chaque pas de temps
+    l1 = 1/Nt * 1/N * np.sum(erreurs_array)
     print()
     print("L1 =", l1)
-    
-    l2 = np.sqrt(1/N * sum(erreur**2))
+
+    l2 = np.sqrt(1/Nt * 1/N * np.sum(erreurs_array**2))
     print()
     print("L2 =", l2)
-    
-    l_inf = max(erreur)
+
+    l_inf = np.max(erreurs_array)
     print()
     print("L∞ =", l_inf)
 
@@ -103,45 +112,8 @@ for N in noeuds:
 
     print("\n#######\n")
 
-# Tracer le résultat
-
-# Rendre les axes plus gras
-def axes_gras():
-    plt.gca().spines['bottom'].set_linewidth(2)
-    plt.gca().spines['left'].set_linewidth(2)
-    plt.gca().spines['right'].set_linewidth(2)
-    plt.gca().spines['top'].set_linewidth(2)
-
-# Solution MMS
-plt.figure()
-plt.plot(all_r[-1], Ce * (all_r[-1]/R)**2 * np.exp(dt/t0), label='Solution manufacturée')
-axes_gras()
-plt.tick_params(width=2, length=6) # Marques de coche plus longues
-
-plt.xlabel('r (m)', fontsize=12, fontweight='bold')
-plt.ylabel('Concentration (mol/m³)', fontsize=12, fontweight='bold')
-plt.xlim(0, 0.5)
-plt.legend()
-plt.show()
-
-# Solution numérique
-plt.figure()
-for i in range(len(all_r)):
-    plt.plot(all_r[i], all_C[i], label=f'N = {noeuds[i]}')
-
-axes_gras()
-plt.tick_params(width=2, length=6) # Marques de coche plus longues
-
-plt.xlabel('r (m)', fontsize=12, fontweight='bold')
-plt.ylabel('Concentration (mol/m³)', fontsize=12, fontweight='bold')
-plt.xlim(0, 0.5)
-plt.legend()
-plt.show()
-
-
 # Ajuster une loi de puissance à toutes les valeurs (en utilisant np.polyfit avec logarithmes)
-coefficients = []
-coefficients = np.polyfit(np.log(all_h[5:12]), np.log(all_l2[5:12]), 1)
+coefficients = np.polyfit(np.log(all_dt), np.log(all_l2), 1)
 exponent = coefficients[0]
 
 # Fonction de régression en termes de logarithmes
@@ -153,21 +125,25 @@ fit_function = lambda x: np.exp(fit_function_log(np.log(x)))
 # Tracer L1, L2 et L∞ en fonction de h
 plt.figure(figsize=(8, 6))
 
-plt.loglog(all_h, all_l1, marker='o', linestyle='', color="b", label='L1')
-plt.loglog(all_h, all_l2, marker='s', linestyle='', color="k", label='L2')
-plt.loglog(all_h, all_l_inf, marker='^', linestyle='', color="g", label='L∞')
-plt.loglog(all_h, fit_function(all_h), linestyle='--', color='r', label='Régression en loi de puissance')
+plt.loglog(all_dt, all_l1, marker='o', linestyle='', color="b", label='L1')
+plt.loglog(all_dt, all_l2, marker='s', linestyle='', color="k", label='L2')
+plt.loglog(all_dt, all_l_inf, marker='^', linestyle='', color="g", label='L∞')
+plt.loglog(all_dt, fit_function(all_dt), linestyle='--', color='r', label='Régression en loi de puissance')
 
-axes_gras()
+# Rendre les axes plus gras
+plt.gca().spines['bottom'].set_linewidth(2)
+plt.gca().spines['left'].set_linewidth(2)
+plt.gca().spines['right'].set_linewidth(2)
+plt.gca().spines['top'].set_linewidth(2)
 
 # Placer les marques de coche à l'intérieur et les rendre un peu plus longues
 plt.tick_params(width=2, which='both', direction='in', top=True, right=True, length=6)
 
 # Afficher l'équation de la régression en loi de puissance
-equation_text = f'$L_2 = {np.exp(coefficients[1]):.4e} \\times Δr^{{{exponent:.4f}}}$'
-equation_text_obj = plt.text(0.3, 0.2, equation_text, fontsize=12, transform=plt.gca().transAxes, color='k')
+equation_text = f'$L_2 = {np.exp(coefficients[1]):.4f} \\times Δt^{{{exponent:.4f}}}$'
+equation_text_obj = plt.text(0.2, 0.2, equation_text, fontsize=12, transform=plt.gca().transAxes, color='k')
 
-plt.xlabel('h ou Δr (m)', fontsize=12, fontweight='bold')
+plt.xlabel('dt (s)', fontsize=12, fontweight='bold')
 plt.ylabel('Erreur (mol/m³)', fontsize=12, fontweight='bold')
 plt.legend()
 plt.grid(True)

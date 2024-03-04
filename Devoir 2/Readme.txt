@@ -13,4 +13,8 @@ Fichiers :
 /results/Code à code.xlsx : résultats de la vérification code à code
 /results/ ****NAME****.pdf : présentation des résultats et discussions
 ****Codes Python****
-/src/ ****NAME****.py : 
+/src/MMS espace.py : obtenir la solution MMS et l'erreur en espace
+/src/MMS temps.py : obtenir l'erreur en temps pour la MMS
+/src/MNP Diffusion transitoire - polynôme ordre 4.py : tentative d'ajuster un polynôme d'ordre 4
+/src/MNP Diffusion transitoire espace.py : obtenir la solution MNP et l'erreur en espace
+/src/MNP Diffusion transitoire temps.py : obtenir l'erreur en temps pour la MNP

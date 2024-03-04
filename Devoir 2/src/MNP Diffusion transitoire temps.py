@@ -68,7 +68,7 @@ t = np.linspace(0, T, Nt)   # Discrétisation du domaine temporel
 C_anly = np.zeros((Nt, N))
 for i in range(Nt):
     C_anly[i] = solve_diffusion_cylindrical_central(r, h, N, Deff, k, Ce, (i*dt))
-    print(i)
+    # print(i)
 
 # Fonction d'interpolation analytique - une spline pour chaque collone dans l'espace
 splines = []
@@ -80,7 +80,7 @@ for i in range(N):
 noeuds_t = [11, 51, 101, 501]
 
 for Nt in noeuds_t:
-    dt = T/(Nt-1)     # Pas du schéma
+    dt = T/(Nt-1)     # Pas du schéma en temps
     t = np.linspace(0, T, Nt)
     print("Nœuds en temps =", Nt)
     print()
@@ -93,7 +93,7 @@ for Nt in noeuds_t:
     C = np.zeros((Nt, N))
     for i in range(Nt):
         C[i] = solve_diffusion_cylindrical_central(r, h, N, Deff, k, Ce, (i*dt))
-        print(i)
+        # print(i)
 
     # Calculer l'erreur pour chaque collone de la matrice C
     erreurs = []
